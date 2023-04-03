@@ -12,7 +12,6 @@ class SocketConnection {
   addr?: string;
 
   handshakeTimeout?: NodeJS.Timeout;
-  flashTimer?: NodeJS.Timeout;
 
   constructor(ws: WebSocket, remoteAddr?: string, onClose?: (id: string) => void) {
     this.ws = ws;
@@ -44,13 +43,6 @@ class SocketConnection {
         this.ws.close();
       }
     }, 5000);
-
-    let led: boolean = false;
-    this.flashTimer = setInterval(() => {
-      led = !led;
-      this.ws.send('LED 1 ' + (led ? 'ON' : 'OFF'));
-    }, 700)
-
   }
 
   close() {
@@ -58,11 +50,18 @@ class SocketConnection {
       clearTimeout(this.handshakeTimeout);
       this.handshakeTimeout = undefined;
     }
-    if (this.flashTimer) {
-      clearInterval(this.flashTimer);
-      this.flashTimer = undefined;
-    }
     this.ws.close();
+  }
+
+  private sendLed(idx: number, on: boolean, timeMs?: number) {
+    // LED 1 ON 2000
+    this.ws.send(`LED ${idx} ${on ? 'ON' : 'OFF'}${timeMs ?? 0 > 0 ? ' ' + timeMs : ''}`);
+  }
+
+  sendTest() {
+    console.log(this.id, 'Running test');
+    this.ws.send('BEEP 1 2 262 200 294 200 330 200 349 200 392 200 440 200 494 200 523 400 0 400');
+    this.sendLed(1, true, 5000);
   }
 }
 
@@ -93,5 +92,9 @@ export class SocketServer {
       conn.close();
     }
     this.connections = {};
+  }
+
+  testDevice(callsign: string) {
+    Object.values(this.connections).find(c => c.callsign === callsign)?.sendTest();
   }
 }
