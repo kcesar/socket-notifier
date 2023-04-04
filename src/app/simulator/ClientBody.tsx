@@ -20,7 +20,7 @@ export default function ClientBody() {
   useEffect(() => {
      document.title = 'Simulator';
      (window as any).testSong = (message: string) => client.handleMessage(message);
-  }, []);
+  }, [client]);
 
   function connect() {
     if (!id) {
