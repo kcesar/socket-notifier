@@ -10,6 +10,7 @@ class SocketConnection {
   callsign: string = '';
   since: number = new Date().getTime();
   addr?: string;
+  isAlive: boolean = true;
 
   handshakeTimeout?: NodeJS.Timeout;
 
@@ -19,6 +20,7 @@ class SocketConnection {
     ws.on('error', err => console.log('error:', err));
     ws.on('message', (data) => this.handleMessage(String(data)));
     ws.on('close', () => onClose?.(this.id));
+    ws.on('pong', () => this.isAlive = true);
   }
 
   private handleMessage(data: string) {
@@ -53,6 +55,16 @@ class SocketConnection {
     this.ws.close();
   }
 
+  ping() {
+    if (!this.isAlive) {
+      this.close();
+      this.ws.terminate();
+    }
+
+    this.isAlive = false;
+    this.ws.ping();
+  }
+
   private sendLed(idx: number, on: boolean, timeMs?: number) {
     // LED 1 ON 2000
     this.ws.send(`LED ${idx} ${on ? 'ON' : 'OFF'}${timeMs ?? 0 > 0 ? ' ' + timeMs : ''}`);
@@ -65,21 +77,29 @@ class SocketConnection {
   }
 }
 
+function fromMultiValue(str: string|string[]|undefined): string|undefined {
+  if (str == null || typeof str === 'string') return str;
+  return str[0];
+}
+
 export class SocketServer {
-  ws: WebSocketServer;
+  wss: WebSocketServer;
 
   connections: Record<string, SocketConnection> = {};
 
   constructor(server: SocketHTTPServer) {
-    this.ws = new WebSocketServer({ server, path: '/ws' });
-    this.ws.on('connection', (ws, req) => {
-      const conn = new SocketConnection(ws, req.socket.remoteAddress, closeId => this.handleClose(closeId));
+    this.wss = new WebSocketServer({ server, path: '/ws' });
+    this.wss.on('connection', (ws, req) => {
+      const remoteAddr = (fromMultiValue(req.headers['x-forwarded-for']) ?? req.socket.remoteAddress)?.split(':').pop();
+      const conn = new SocketConnection(ws, remoteAddr, closeId => this.handleClose(closeId));
       this.connections[conn.id] = conn;
       console.log(conn.id, 'new connection');
       conn.run();
     });
-    this.ws.on('error', err => console.log('outer error', err));
-    this.ws.on('close', () => console.log('outer close'));
+    this.wss.on('error', err => console.log('outer error', err));
+    this.wss.on('close', () => console.log('outer close'));
+
+    setInterval(() => Object.values(this.connections).forEach(c => c.ping()), 20000);
   }
 
   private handleClose(closeId: string) {
@@ -95,6 +115,6 @@ export class SocketServer {
   }
 
   testDevice(callsign: string) {
-    Object.values(this.connections).find(c => c.callsign === callsign)?.sendTest();
+    Object.values(this.connections).filter(c => c.callsign === callsign).forEach(c => c.sendTest());
   }
 }
