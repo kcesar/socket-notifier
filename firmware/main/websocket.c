@@ -7,18 +7,21 @@
 
 static const char *TAG = "WEBSOCKET";
 
+static char* serverName = NULL;
+static char* callsign = NULL;
+
 static void handle_websocket_message(char *message) {
   char *marker;
   const char *command = strtok_r(message, " ", &marker);
   ESP_LOGI(TAG, "SOCKET MESSAGE %s (%s)", command, marker);
   if (strcmp(command, "WELCOME") == 0) {
-    ESP_LOGI(TAG, "am connected to hub");
+    ESP_LOGW(TAG, "Successfully connected to %s as %s", serverName, callsign);
   } else if (strcmp(command, "LED") == 0) {
     ESP_LOGI(TAG, "An LED message");
   } else if (strcmp(command, "BEEP") == 0) {
     ESP_LOGI(TAG, "A BEEP message %s", marker);
     int speakerId = atoi(strtok_r(NULL, " ", &marker));
-    speaker_play(marker);
+    if (speakerId == 1) speaker_play(marker);
   }
 }
 
@@ -28,7 +31,7 @@ static void websocket_event_handler(void *handler_args, esp_event_base_t base, i
   ESP_LOGI(TAG, "WEBSOCKET event event=%d opcode=%d len=%d", event_id, data ? data->op_code : -5, data->data_len);
   if (event_id == WEBSOCKET_EVENT_CONNECTED) {
     ESP_LOGI(TAG, "WEBSOCKET_EVENT_CONNECTED");
-    int len = sprintf(outBuf, "HELLO %s", "my-device");
+    int len = sprintf(outBuf, "HELLO %s", callsign);
     esp_websocket_client_send_text(data->client, outBuf, len, portMAX_DELAY);
   } else if (event_id == WEBSOCKET_EVENT_DISCONNECTED) {
     ESP_LOGI(TAG, "WEBSOCKET_EVENT_DISCONNECTED");
@@ -50,7 +53,7 @@ static void websocket_event_handler(void *handler_args, esp_event_base_t base, i
   }
 }
 
-void websocket_start() {
+void websocket_start(char *server, char *configCallsign) {
   ESP_LOGI(TAG, "Starting websocket");
 
   if (!wait_for_ip()) {
@@ -58,9 +61,17 @@ void websocket_start() {
     return;
   }
 
-  ESP_LOGI(TAG, "have ip. starting websocket connection");
+  serverName = server;
+  callsign = configCallsign;
+
+  ESP_LOGI(TAG, "have ip. starting websocket connection to %s", server);
+  const char *uriTemplate = "wss://%s/ws";
+  char uri[strlen(server) + strlen(uriTemplate)];
+  sprintf(uri, uriTemplate, server);
+
   esp_websocket_client_config_t config = {
-      .uri = "wss://matt-laptop/ws"};
+      .uri = uri,
+  };
 
   esp_websocket_client_handle_t client = esp_websocket_client_init(&config);
   esp_websocket_register_events(client, WEBSOCKET_EVENT_ANY, websocket_event_handler, (void *)client);

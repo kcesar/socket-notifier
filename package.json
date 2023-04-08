@@ -17,6 +17,7 @@
     "@types/uuid": "^9.0.1",
     "@types/ws": "^8.5.4",
     "bufferutil": "^4.0.7",
+    "date-fns": "^2.29.3",
     "eslint": "8.37.0",
     "eslint-config-next": "13.2.4",
     "google-auth-library": "^8.7.0",

@@ -18,7 +18,7 @@ static EventGroupHandle_t s_wifi_event_group;
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT BIT1
 
-static const char *TAG = "wifi station";
+static const char *TAG = "NETWORK";
 
 static int s_retry_num = 0;
 static SemaphoreHandle_t s_semph_get_ip_addrs = NULL;
@@ -40,10 +40,10 @@ static void event_handler(void *arg, esp_event_base_t event_base,
         xSemaphoreGive(s_semph_get_ip_addrs);
       }
     }
-    ESP_LOGI(TAG, "connect to the AP fail");
+    ESP_LOGW(TAG, "Failed to connect to network.");
   } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
     ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
-    ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
+    ESP_LOGW(TAG, "Connected to network. IP:" IPSTR, IP2STR(&event->ip_info.ip));
     s_retry_num = 0;
     is_connected = true;
     if (s_semph_get_ip_addrs) {
@@ -59,6 +59,7 @@ bool wait_for_ip() {
 }
 
 void wifi_init_sta(const char *ssid, const char *password) {
+  ESP_LOGW(TAG, "Connecting to wireless network (%s) ...", ssid);
   s_semph_get_ip_addrs = xSemaphoreCreateBinary();
   s_wifi_event_group = xEventGroupCreate();
 
@@ -100,29 +101,4 @@ void wifi_init_sta(const char *ssid, const char *password) {
   ESP_ERROR_CHECK(esp_wifi_start());
 
   ESP_LOGI(TAG, "wifi_init_sta finished.");
-
-  /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
-   * number of re-tries (WIFI_FAIL_BIT). The bits are set by event_handler() (see above) */
-  // EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
-  //         WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
-  //         pdFALSE,
-  //         pdFALSE,
-  //         portMAX_DELAY);
-
-  /* xEventGroupWaitBits() returns the bits before the call returned, hence we can test which event actually
-   * happened. */
-  // if (bits & WIFI_CONNECTED_BIT) {
-  //     ESP_LOGI(TAG, "connected to ap SSID:%s password:%s",
-  //              EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
-  // } else if (bits & WIFI_FAIL_BIT) {
-  //     ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s",
-  //              EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
-  // } else {
-  //     ESP_LOGE(TAG, "UNEXPECTED EVENT");
-  // }
-
-  /* The event will not be processed after unregister */
-  // ESP_ERROR_CHECK(esp_event_handler_instance_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, instance_got_ip));
-  // ESP_ERROR_CHECK(esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
-  // vEventGroupDelete(s_wifi_event_group);
 }

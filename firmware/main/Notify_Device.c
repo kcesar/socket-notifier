@@ -23,6 +23,7 @@
 #include "speaker.h"
 #include "websocket.h"
 #include "wifi.h"
+#include "configuration.h"
 
 static const char *TAG = "app";
 /* The examples use WiFi configuration that you can set via project configuration menu
@@ -46,9 +47,15 @@ void app_main(void) {
   ESP_ERROR_CHECK(ret);
 
   enable_logging();
+  struct AppConfig *config = config_read();
 
-  ESP_LOGI(TAG, "ESP_WIFI_MODE_STA");
-  wifi_init_sta(EXAMPLE_ESP_WIFI_SSID, EXAMPLE_ESP_WIFI_PASS);
-  websocket_start();
-  xTaskCreatePinnedToCore(speaker_task, "beep", 2560, NULL, 10, &beep_handle, 1);
+  if (config != NULL) {
+    wifi_init_sta(config->wifi_ssid, config->wifi_password);
+    websocket_start(config->server, config->callsign);
+    xTaskCreatePinnedToCore(speaker_task, "beep", 2560, NULL, 10, &beep_handle, 1);
+  } else {
+    ESP_LOGW(TAG, "Network not started: Wi-Fi not configured.");
+  }
+
+  xTaskCreatePinnedToCore(configure_task, "configure", 2560, NULL, 15, NULL, 1);
 }

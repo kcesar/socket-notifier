@@ -3,6 +3,6 @@
 
 #include "speaker.h"
 
-void websocket_start();
+void websocket_start(char *server, char *callsign);
 
 #endif
