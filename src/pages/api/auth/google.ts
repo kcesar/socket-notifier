@@ -3,6 +3,7 @@ import { withIronSessionApiRoute } from 'iron-session/next';
 import { NextApiRequest, NextApiResponse } from 'next';
 import { TokenPayload } from 'google-auth-library';
 import { getServices } from '@/lib/server/services';
+import { getSetting } from '@/lib/server/mongodb';
 
 async function apiLogin(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
@@ -47,6 +48,7 @@ async function apiLogin(req: NextApiRequest, res: NextApiResponse) {
       email: payload.email,
       userId: payload.sub,
       ...payload,
+      isAdmin: (await getSetting('admins')).includes(payload.email),
     };
 
     console.log(`Logging in user ${payload.email}`);

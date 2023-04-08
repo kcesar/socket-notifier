@@ -1,8 +1,21 @@
+import type { Socket as NetSocket } from 'net';
 import type { Server as HTTPServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { v4 as uuid } from 'uuid';
+import { NextApiResponse } from 'next';
+import { getDevice } from './mongodb';
 
 export type SocketHTTPServer = HTTPServer & { ss?: SocketServer };
+
+export interface NextSocketApiResponse extends NextApiResponse {
+  socket: NetSocket & {
+    server: SocketHTTPServer;
+  };
+}
+
+function hasHttpServer(object: NextApiResponse): object is NextSocketApiResponse {
+  return 'socket' in object;
+}
 
 class SocketConnection {
   private ws: WebSocket;
@@ -23,11 +36,17 @@ class SocketConnection {
     ws.on('pong', () => this.isAlive = true);
   }
 
-  private handleMessage(data: string) {
+  private async handleMessage(data: string) {
     const parts = data.split(' ');
     switch (parts[0]) {
       case 'HELLO':
         this.callsign = parts[1];
+        const device = await getDevice(this.callsign);
+        if (!device) {
+          this.ws.send('ERROR device not known');
+          this.ws.close();
+          return;
+        }
         console.log(this.id, `Handshake complete for ${this.callsign}`);
         this.ws.send('WELCOME ' + this.id);
         break;
@@ -116,5 +135,16 @@ export class SocketServer {
 
   testDevice(callsign: string) {
     Object.values(this.connections).filter(c => c.callsign === callsign).forEach(c => c.sendTest());
+  }
+
+  static fromResponse(res: NextApiResponse): SocketServer {
+    if (!hasHttpServer(res)) throw new Error('Not a socket server');
+
+    const server = res.socket.server;
+    if (!server.ss) {
+      console.log('Initializing websocket server');
+      server.ss = new SocketServer(server);
+    }
+    return server.ss;
   }
 }

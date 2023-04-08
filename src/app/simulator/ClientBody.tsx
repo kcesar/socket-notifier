@@ -49,7 +49,7 @@ export default function ClientBody() {
       <div>Id: <input type="text" value={id} onChange={evt => setId(evt.target.value)}/></div>
       <div>
         <button onClick={() => connect()} disabled={!id || connected}>Connect</button>
-        <button onClick={() => disconnect()} disabled={!connected}>Disonnect</button>
+        <button onClick={() => disconnect()} disabled={!connected}>Disconnect</button>
       </div>
       <div>
         Silent tone: <input type="checkbox" checked={silent} onChange={evt => handleSilent(evt.target.checked)} />
@@ -98,7 +98,7 @@ class SocketClient {
 
   async connect() {
     try {
-      await fetch('/api/socket-keepalive');
+      await fetch('/api/keepalive');
 
       const s = new WebSocket(`${window.location.origin.replace('http', 'ws')}/ws`);
       s.addEventListener('open', evt => {
@@ -133,6 +133,11 @@ class SocketClient {
     console.log('handling message', message);
     const parts = message.split(' ');
     switch (parts[0]) {
+      case 'ERROR':
+        alert(message);
+        this.enabled = false;
+        break;
+
       case 'WELCOME':
         this.options.doConnected?.(true);
         break;

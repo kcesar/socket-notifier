@@ -33,6 +33,15 @@ if (process.env.NODE_ENV === 'development') {
 // separate module, the client can be shared across functions.
 export default clientPromise;
 
+interface MongoDoc {
+  _id?: unknown;
+}
+
+interface StandardOptions {
+  stripIds?: boolean
+}
+
+
 let settings: SettingsDoc|undefined;
 export async function getSetting(key: keyof SettingsDoc) {
   if (!settings) {
@@ -44,14 +53,20 @@ export async function getSetting(key: keyof SettingsDoc) {
   return settings[key];
 }
 
-export async function getAllDevices() {
+export async function getAllDevices(opts?: StandardOptions) {
   const client = await clientPromise;
   const devices = await client.db().collection<DeviceDoc>(DEVICE_COLLECTION).find().sort({'email': 1, 'name': 1}).toArray();
+  if (opts?.stripIds ?? false) {
+    devices.forEach(d => delete (d as MongoDoc)._id);
+  }
   return devices;
 }
 
-export async function getDevice(callsign: string) {
+export async function getDevice(callsign: string, opts?: StandardOptions) {
   const client = await clientPromise;
   const device = await client.db().collection<DeviceDoc>(DEVICE_COLLECTION).findOne({ callsign });
+  if (opts?.stripIds ?? false) {
+    delete (device as MongoDoc)._id;
+  }
   return device;
 }
