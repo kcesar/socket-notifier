@@ -10,6 +10,14 @@ static const char *TAG = "WEBSOCKET";
 static char* serverName = NULL;
 static char* callsign = NULL;
 
+static esp_websocket_client_handle_t client = NULL;
+
+void websocket_send_button(uint8_t buttonId) {
+  char outBuf[32];
+  int len = sprintf(outBuf, "BUTTON %u", buttonId);
+  esp_websocket_client_send_text(client, outBuf, len, portMAX_DELAY);
+}
+
 static void handle_websocket_message(char *message) {
   char *marker;
   const char *command = strtok_r(message, " ", &marker);
@@ -20,8 +28,7 @@ static void handle_websocket_message(char *message) {
     ESP_LOGI(TAG, "An LED message");
   } else if (strcmp(command, "BEEP") == 0) {
     ESP_LOGI(TAG, "A BEEP message %s", marker);
-    int speakerId = atoi(strtok_r(NULL, " ", &marker));
-    if (speakerId == 1) speaker_play(marker);
+    speaker_play(marker);
   }
 }
 
@@ -73,7 +80,7 @@ void websocket_start(char *server, char *configCallsign) {
       .uri = uri,
   };
 
-  esp_websocket_client_handle_t client = esp_websocket_client_init(&config);
+  client = esp_websocket_client_init(&config);
   esp_websocket_register_events(client, WEBSOCKET_EVENT_ANY, websocket_event_handler, (void *)client);
 
   esp_websocket_client_start(client);

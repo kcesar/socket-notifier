@@ -7,6 +7,7 @@
 #include "nvs_flash.h"
 #include <string.h>
 
+#include "setup.h"
 #include "logging.h"
 #include "configuration.h"
 
@@ -16,8 +17,6 @@
 #define NVS_KEY_PASSWORD "wifi_password"
 #define NVS_KEY_SERVER "server"
 #define NVS_KEY_CALLSIGN "callsign"
-
-#define DEFAULT_SERVER "notifier.kcesar.org"
 
 enum ConfigState_t {
   IDLE,

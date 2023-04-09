@@ -19,6 +19,7 @@
 #include "lwip/err.h"
 #include "lwip/sys.h"
 
+#include "button.h"
 #include "logging.h"
 #include "speaker.h"
 #include "websocket.h"
@@ -38,6 +39,8 @@ static const char *TAG = "app";
 TaskHandle_t beep_handle = NULL;
 
 void app_main(void) {
+  speaker_setup();
+  
   // Initialize NVS
   esp_err_t ret = nvs_flash_init();
   if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -57,5 +60,6 @@ void app_main(void) {
     ESP_LOGW(TAG, "Network not started: Wi-Fi not configured.");
   }
 
+  xTaskCreatePinnedToCore(button_task, "button", 2560, NULL, 15, NULL, 1);
   xTaskCreatePinnedToCore(configure_task, "configure", 2560, NULL, 15, NULL, 1);
 }
