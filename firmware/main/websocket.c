@@ -4,6 +4,7 @@
 #include "speaker.h"
 #include "websocket.h"
 #include "wifi.h"
+#include "version.h"
 
 static const char *TAG = "WEBSOCKET";
 
@@ -38,7 +39,7 @@ static void websocket_event_handler(void *handler_args, esp_event_base_t base, i
   ESP_LOGI(TAG, "WEBSOCKET event event=%d opcode=%d len=%d", event_id, data ? data->op_code : -5, data->data_len);
   if (event_id == WEBSOCKET_EVENT_CONNECTED) {
     ESP_LOGI(TAG, "WEBSOCKET_EVENT_CONNECTED");
-    int len = sprintf(outBuf, "HELLO %s", callsign);
+    int len = sprintf(outBuf, "HELLO %s %s", callsign, FIRMWARE_VERSION);
     esp_websocket_client_send_text(data->client, outBuf, len, portMAX_DELAY);
   } else if (event_id == WEBSOCKET_EVENT_DISCONNECTED) {
     ESP_LOGI(TAG, "WEBSOCKET_EVENT_DISCONNECTED");

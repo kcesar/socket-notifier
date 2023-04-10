@@ -2,6 +2,8 @@
 import { MongoClient } from 'mongodb';
 import { DEVICE_COLLECTION, DeviceDoc } from './data/deviceDoc';
 import { SETTINGS_COLLECTION, SettingsDoc } from './data/settingsDoc';
+import { FIRMWARE_COLLECTION, FirmwareDoc } from './data/firmwareDoc';
+import ClientBody from '@/app/(main)/ClientBody';
 
 if (!process.env.MONGODB_URI) {
   throw new Error('Invalid/Missing environment variable: "MONGODB_URI"');
@@ -69,4 +71,47 @@ export async function getDevice(callsign: string, opts?: StandardOptions) {
     delete (device as MongoDoc)._id;
   }
   return device;
+}
+
+export async function deviceCheckin(callsign: string, version: string, time: number): Promise<DeviceDoc|null> {
+  const client = await clientPromise;
+  const update = { $set: { reportedVersion: version, lastConnected: time }};
+  await client.db().collection<DeviceDoc>(DEVICE_COLLECTION).updateOne({callsign}, update);
+  return await getDevice(callsign);
+}
+
+export async function deviceInteraction(callsign: string, time: number) {
+  const client = await clientPromise;
+  const update = { $set: { lastInteraction: time }};
+  await client.db().collection<DeviceDoc>(DEVICE_COLLECTION).updateOne({callsign}, update);
+}
+
+export const DeviceMongo = {
+  getAllDevices,
+  getDevice,
+  deviceCheckin,
+  deviceInteraction,
+}
+
+export async function getFirmwareVersions(): Promise<string[]> {
+  const client = await clientPromise;
+  const versions = await client.db().collection<FirmwareDoc>(FIRMWARE_COLLECTION).find().project<{version: string}>({ version: 1 }).toArray();
+  return versions.map(v => v.version);
+}
+
+export async function putFirmware(firmware: FirmwareDoc) {
+  const client = await clientPromise;
+  await client.db().collection<FirmwareDoc>(FIRMWARE_COLLECTION).replaceOne({ version: firmware.version }, firmware, { upsert: true });
+}
+
+export async function getFirmwareBinary(version: string): Promise<Buffer|undefined> {
+  const client = await clientPromise;
+  const document = await client.db().collection<FirmwareDoc>(FIRMWARE_COLLECTION).findOne({version});
+  return document ? document.file : undefined;
+}
+
+export const FirmwareMongo = {
+  getFirmwareVersions,
+  putFirmware,
+  getFirmwareBinary,
 }

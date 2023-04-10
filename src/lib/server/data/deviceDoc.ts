@@ -10,4 +10,8 @@ export interface DeviceDoc {
   name: string;
   email: string;
   channels: DeviceChannelSubscription[];
+  expectedVersion?: string;
+  reportedVersion?: string;
+  lastConnected?: number;
+  lastInteraction?: number;
 }

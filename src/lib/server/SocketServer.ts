@@ -3,7 +3,7 @@ import type { Server as HTTPServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { v4 as uuid } from 'uuid';
 import { NextApiResponse } from 'next';
-import { getDevice } from './mongodb';
+import { DeviceMongo } from './mongodb';
 
 export type SocketHTTPServer = HTTPServer & { ss?: SocketServer };
 
@@ -41,9 +41,17 @@ class SocketConnection {
     switch (parts[0]) {
       case 'HELLO':
         this.callsign = parts[1];
-        const device = await getDevice(this.callsign);
+        const firmware = parts[2];
+
+        const device = await DeviceMongo.deviceCheckin(this.callsign, firmware, new Date().getTime());
         if (!device) {
           this.ws.send('ERROR device not known');
+          this.ws.close();
+          return;
+        }
+        if (device.expectedVersion && (device.expectedVersion !== firmware)) {
+          console.log(this.id, `${this.callsign} on firmware ${firmware} should be on ${device.expectedVersion}`);
+          this.ws.send(`OTA ${device.expectedVersion}`);
           this.ws.close();
           return;
         }
@@ -52,6 +60,7 @@ class SocketConnection {
         break;
 
       case 'BUTTON':
+        await DeviceMongo.deviceInteraction(this.callsign, new Date().getTime());
         console.log(this.id, 'clicked button');
         break;
     }

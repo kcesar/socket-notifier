@@ -25,6 +25,12 @@
 #include "websocket.h"
 #include "wifi.h"
 #include "configuration.h"
+#include "version.h"
+
+// A magic string immediately followed by the current firmware version, so the uploader
+// can extract the version by grepping for the magic string
+#define EXTRACTABLE_VERSION() ("curgycid" FIRMWARE_VERSION)
+#define EXTRACTABLE_VERSION_KEY_LEN 8
 
 static const char *TAG = "app";
 /* The examples use WiFi configuration that you can set via project configuration menu
@@ -49,6 +55,7 @@ void app_main(void) {
   }
   ESP_ERROR_CHECK(ret);
 
+  ESP_LOGI(TAG, "Starting firmware version %s", EXTRACTABLE_VERSION() + EXTRACTABLE_VERSION_KEY_LEN);
   enable_logging();
   struct AppConfig *config = config_read();
 
