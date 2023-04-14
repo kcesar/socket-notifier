@@ -25,12 +25,8 @@
 #include "websocket.h"
 #include "wifi.h"
 #include "configuration.h"
-#include "version.h"
-
-// A magic string immediately followed by the current firmware version, so the uploader
-// can extract the version by grepping for the magic string
-#define EXTRACTABLE_VERSION() ("curgycid" FIRMWARE_VERSION)
-#define EXTRACTABLE_VERSION_KEY_LEN 8
+#include "ota.h"
+#include "led.h"
 
 static const char *TAG = "app";
 /* The examples use WiFi configuration that you can set via project configuration menu
@@ -55,9 +51,12 @@ void app_main(void) {
   }
   ESP_ERROR_CHECK(ret);
 
-  ESP_LOGI(TAG, "Starting firmware version %s", EXTRACTABLE_VERSION() + EXTRACTABLE_VERSION_KEY_LEN);
+  char otaHash[OTA_HASH_STR_LEN];
+  ESP_LOGI(TAG, "Starting firmware version %s", ota_get_partition_hash(otaHash));
   enable_logging();
   struct AppConfig *config = config_read();
+
+  xTaskCreatePinnedToCore(led_task, "led", 2560, NULL, 15, NULL, 1);
 
   if (config != NULL) {
     wifi_init_sta(config->wifi_ssid, config->wifi_password);
@@ -65,6 +64,7 @@ void app_main(void) {
     xTaskCreatePinnedToCore(speaker_task, "beep", 2560, NULL, 10, &beep_handle, 1);
   } else {
     ESP_LOGW(TAG, "Network not started: Wi-Fi not configured.");
+    led_show("-1 FF0000 0 FF0000 200 000000 0 000000 1000");
   }
 
   xTaskCreatePinnedToCore(button_task, "button", 2560, NULL, 15, NULL, 1);

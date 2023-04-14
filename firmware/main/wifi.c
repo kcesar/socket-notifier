@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "wifi.h"
+#include "led.h"
 
 #define EXAMPLE_ESP_MAXIMUM_RETRY 10
 
@@ -30,6 +31,7 @@ static void event_handler(void *arg, esp_event_base_t event_base,
     esp_wifi_connect();
   } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
     if (s_retry_num < EXAMPLE_ESP_MAXIMUM_RETRY) {
+      led_show("-1 000000 0 ff4400 1000 000000 1000");
       esp_wifi_connect();
       s_retry_num++;
       ESP_LOGI(TAG, "retry to connect to the AP");
@@ -41,6 +43,7 @@ static void event_handler(void *arg, esp_event_base_t event_base,
       }
     }
     ESP_LOGW(TAG, "Failed to connect to network.");
+    led_show("-1 FF0000 0 FF0000 200 000000 0 000000 200 FF0000 0 FF0000 200 000000 0 000000 1000");
   } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
     ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
     ESP_LOGW(TAG, "Connected to network. IP:" IPSTR, IP2STR(&event->ip_info.ip));
@@ -60,6 +63,7 @@ bool wait_for_ip() {
 
 void wifi_init_sta(const char *ssid, const char *password) {
   ESP_LOGW(TAG, "Connecting to wireless network (%s) ...", ssid);
+  led_show("-1 000000 0 ff4400 1000 000000 1000");
   s_semph_get_ip_addrs = xSemaphoreCreateBinary();
   s_wifi_event_group = xEventGroupCreate();
 

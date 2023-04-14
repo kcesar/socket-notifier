@@ -2,9 +2,10 @@
 #define SETUP_H
 #include "driver/gpio.h"
 
-#define GPIO_LED_R 25
-#define GPIO_LED_G 26
-#define GPIO_LED_B 27
+#define LED_R_PIN 25
+#define LED_G_PIN 26
+#define LED_B_PIN 27
+#define LED_TIMING_PIN 14
 
 #define BEEPER_PIN 33
 

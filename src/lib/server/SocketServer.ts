@@ -49,7 +49,7 @@ class SocketConnection {
           this.ws.close();
           return;
         }
-        if (device.expectedVersion && (device.expectedVersion !== firmware)) {
+        if (device.expectedVersion && (device.expectedVersion !== 'ignore') && (device.expectedVersion !== firmware)) {
           console.log(this.id, `${this.callsign} on firmware ${firmware} should be on ${device.expectedVersion}`);
           this.ws.send(`OTA ${device.expectedVersion}`);
           this.ws.close();
@@ -102,7 +102,7 @@ class SocketConnection {
     console.log(this.id, 'Running test');
     //this.ws.send('BEEP 1 3 262 200 294 200 330 200 349 200 392 200 440 200 494 200 523 400 0 400');
     this.ws.send('BEEP 0 3 1000 500 0 100 1000 500 0 100 1000 750 0 500');
-    this.sendLed(1, true, 5000);
+    this.ws.send('LED 1 10 FF0000 1000 00FF00 1000 0000FF 1000')
   }
 }
 

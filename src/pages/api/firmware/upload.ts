@@ -1,36 +1,26 @@
 import { getAuthFromApiCookies } from '@/lib/server/auth';
-import { FirmwareMongo } from '@/lib/server/mongodb';
 import { IncomingForm, Fields, Files } from 'formidable';
 import { promises as fs } from 'fs';
 import { NextApiRequest, NextApiResponse } from 'next';
-
+import { FirmwareMongo } from '@/lib/server/mongodb';
+import Utils from '@/lib/server/utils';
 export const config = {
   api: {
     bodyParser: false,
   }
 }
 
-const VERSION_MAGIC = "curgycid";
-
 function findVersion(data: Buffer) {
-  let len = 0;
-  for (let i=0; i<data.length; i++) {
-    if (data[i] === VERSION_MAGIC.charCodeAt(len)) {
-      len++;
-      if (len == VERSION_MAGIC.length) {
-        for (let end=i; end<data.length; end++) {
-          if (data[end] === 0) {
-            const versionText = data.toString('utf-8', i + 1, end);
-            console.log('found version string', versionText);
-            return versionText;
-          }
-        }
-      }
-    } else {
-      len = 0;
-    }
+  // https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/firmware-image-format.html
+  // Extended File Header is 16 bytes starting after the 8 byte File Header. Byte 15 of the Extended File Header
+  // (8 + 15) is the "Hash appended" flag.
+  if (data[0x17] !== 0x01) {
+    return undefined;
   }
-  return undefined;
+
+  // There is a system call on the ESP32 to get the hash of the currently running partition that matches the last
+  // 32 bytes of the .bin file.
+  return data.subarray(-32).toString('hex');
 }
 
 export default async function FirmwareUploadHandler(req: NextApiRequest, res: NextApiResponse) {
@@ -68,6 +58,7 @@ export default async function FirmwareUploadHandler(req: NextApiRequest, res: Ne
   }
 
   await FirmwareMongo.putFirmware({
+    description: Utils.fromMultiValue(formData.fields['description']) ?? '',
     version,
     file: data,
     uploaded: new Date().getTime(),

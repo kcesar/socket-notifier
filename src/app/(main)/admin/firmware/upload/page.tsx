@@ -7,11 +7,13 @@ import styles from './page.module.css';
 
 function AdminBody() {
   const [file, setFile] = useState<File>();
+  const [ description, setDescription ] = useState<string>('');
   
   async function uploadFiles() {
     if (!file) return;
 
     const formData = new FormData();
+    formData.append("description", description);
     formData.append("file", file);
     const response = await fetch('/api/firmware/upload', {
       method: 'POST',
@@ -62,6 +64,7 @@ function AdminBody() {
       </h3>
     </div>
     {file ? <div>{file.name}</div> : <></>}
+    <div>Description: <input type="text" value={description} onChange={evt => setDescription(evt.target.value)} /></div>
     <button disabled={!file} onClick={uploadFiles} className={styles.uploadBtn}>Upload</button>
   </>);
 }
