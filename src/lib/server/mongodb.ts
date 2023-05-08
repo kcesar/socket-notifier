@@ -3,7 +3,7 @@ import { MongoClient } from 'mongodb';
 import { DEVICE_COLLECTION, DeviceDoc } from './data/deviceDoc';
 import { SETTINGS_COLLECTION, SettingsDoc } from './data/settingsDoc';
 import { FIRMWARE_COLLECTION, FirmwareDoc } from './data/firmwareDoc';
-import ClientBody from '@/app/(main)/ClientBody';
+import { CHANNEL_COLLECTION, ChannelDoc } from './data/channelDoc';
 
 if (!process.env.MONGODB_URI) {
   throw new Error('Invalid/Missing environment variable: "MONGODB_URI"');
@@ -91,6 +91,16 @@ export const DeviceMongo = {
   getDevice,
   deviceCheckin,
   deviceInteraction,
+}
+
+export async function getChannel(channelId: string): Promise<ChannelDoc|undefined> {
+  const client = await clientPromise;
+  const channel = await client.db().collection<ChannelDoc>(CHANNEL_COLLECTION).findOne({ name: channelId });
+  return channel ? channel : undefined;
+}
+
+export const ChannelsMongo = {
+  getChannel,
 }
 
 export async function getFirmwareVersions(): Promise<string[]> {

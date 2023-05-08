@@ -1,9 +1,9 @@
 import type { Socket as NetSocket } from 'net';
 import type { Server as HTTPServer } from 'http';
-import { WebSocketServer, WebSocket } from 'ws';
-import { v4 as uuid } from 'uuid';
+import { WebSocketServer } from 'ws';
 import { NextApiResponse } from 'next';
-import { DeviceMongo } from './mongodb';
+import { SocketConnection } from './socketConnection';
+import { getServices } from './services';
 
 export type SocketHTTPServer = HTTPServer & { ss?: SocketServer };
 
@@ -17,102 +17,15 @@ function hasHttpServer(object: NextApiResponse): object is NextSocketApiResponse
   return 'socket' in object;
 }
 
-class SocketConnection {
-  private ws: WebSocket;
-  readonly id = uuid();
-  callsign: string = '';
-  since: number = new Date().getTime();
-  addr?: string;
-  isAlive: boolean = true;
-
-  handshakeTimeout?: NodeJS.Timeout;
-
-  constructor(ws: WebSocket, remoteAddr?: string, onClose?: (id: string) => void) {
-    this.ws = ws;
-    this.addr = remoteAddr;
-    ws.on('error', err => console.log('error:', err));
-    ws.on('message', (data) => this.handleMessage(String(data)));
-    ws.on('close', () => onClose?.(this.id));
-    ws.on('pong', () => this.isAlive = true);
-  }
-
-  private async handleMessage(data: string) {
-    const parts = data.split(' ');
-    switch (parts[0]) {
-      case 'HELLO':
-        this.callsign = parts[1];
-        const firmware = parts[2];
-
-        const device = await DeviceMongo.deviceCheckin(this.callsign, firmware, new Date().getTime());
-        if (!device) {
-          this.ws.send('ERROR device not known');
-          this.ws.close();
-          return;
-        }
-        if (device.expectedVersion && (device.expectedVersion !== 'ignore') && (device.expectedVersion !== firmware)) {
-          console.log(this.id, `${this.callsign} on firmware ${firmware} should be on ${device.expectedVersion}`);
-          this.ws.send(`OTA ${device.expectedVersion}`);
-          this.ws.close();
-          return;
-        }
-        console.log(this.id, `Handshake complete for ${this.callsign}`);
-        this.ws.send('WELCOME ' + this.id);
-        break;
-
-      case 'BUTTON':
-        await DeviceMongo.deviceInteraction(this.callsign, new Date().getTime());
-        console.log(this.id, 'clicked button');
-        break;
-    }
-  }
-
-  run() {
-    this.handshakeTimeout = setTimeout(() => {
-      if (!this.callsign && this.ws.readyState === WebSocket.OPEN) {
-        this.ws.send('ERROR No handshake');
-        this.ws.close();
-      }
-    }, 5000);
-  }
-
-  close() {
-    if (this.handshakeTimeout) {
-      clearTimeout(this.handshakeTimeout);
-      this.handshakeTimeout = undefined;
-    }
-    this.ws.close();
-  }
-
-  ping() {
-    if (!this.isAlive) {
-      this.close();
-      this.ws.terminate();
-    }
-
-    this.isAlive = false;
-    this.ws.ping();
-  }
-
-  private sendLed(idx: number, on: boolean, timeMs?: number) {
-    // LED 1 ON 2000
-    this.ws.send(`LED ${idx} ${on ? 'ON' : 'OFF'}${timeMs ?? 0 > 0 ? ' ' + timeMs : ''}`);
-  }
-
-  sendTest() {
-    console.log(this.id, 'Running test');
-    //this.ws.send('BEEP 1 3 262 200 294 200 330 200 349 200 392 200 440 200 494 200 523 400 0 400');
-    this.ws.send('BEEP 0 3 1000 500 0 100 1000 500 0 100 1000 750 0 500');
-    this.ws.send('LED 1 10 FF0000 1000 00FF00 1000 0000FF 1000')
-  }
-}
-
 function fromMultiValue(str: string|string[]|undefined): string|undefined {
   if (str == null || typeof str === 'string') return str;
   return str[0];
 }
 
+
 export class SocketServer {
-  wss: WebSocketServer;
+  private readonly wss: WebSocketServer;
+  
 
   connections: Record<string, SocketConnection> = {};
 
@@ -129,6 +42,7 @@ export class SocketServer {
     this.wss.on('close', () => console.log('outer close'));
 
     setInterval(() => Object.values(this.connections).forEach(c => c.ping()), 20000);
+    getServices().then(services => services.gmailService.newMailStream.subscribe(email => this.notifyDevices(email)));
   }
 
   private handleClose(closeId: string) {
@@ -145,6 +59,15 @@ export class SocketServer {
 
   testDevice(callsign: string) {
     Object.values(this.connections).filter(c => c.callsign === callsign).forEach(c => c.sendTest());
+  }
+
+  notifyDevices(email: string) {
+    for (const conn of Object.values(this.connections)) {
+      const channels = conn.channels.filter(c => c.email === email).forEach(channel => {
+        console.log(`SEND NOTICE TO ${conn.callsign} about ${channel.email}!!`);
+        channel.commands.forEach(cmd => conn.sendCommand(cmd));
+      });
+    }
   }
 
   static fromResponse(res: NextApiResponse): SocketServer {

@@ -27,7 +27,7 @@ export default function ListDevicesPage() {
       clearInterval(timer);
       clearInterval(clock);
     }
-  }, [all]);
+  }, [ all, refresh ]);
 
   function startTest(callsign: string) {
     if (!confirm(`Send test to ${callsign}? The device will make sounds.`)) {
