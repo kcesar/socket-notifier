@@ -13,13 +13,13 @@ export default function ListDevicesPage() {
   const [ all, setAll ] = useState<boolean>(false);
   const [ now, setNow ] = useState<number>(new Date().getTime());
 
-  async function refresh() {
-    const response = await fetch(`/api/devices${all ? '?all=true' : ''}`);
-    const result = await response.json() as { devices: ConnectedDevice[] };
-    setList(result.devices);
-  }
-
   useEffect(() => {
+    async function refresh() {
+      const response = await fetch(`/api/devices${all ? '?all=true' : ''}`);
+      const result = await response.json() as { devices: ConnectedDevice[] };
+      setList(result.devices);
+    }
+
     const timer = setInterval(() => refresh(), 10000);
     const clock = setInterval(() => setNow(new Date().getTime()), 1000);
     refresh();
@@ -27,7 +27,7 @@ export default function ListDevicesPage() {
       clearInterval(timer);
       clearInterval(clock);
     }
-  }, [ all, refresh ]);
+  }, [ all, setList, setNow ]);
 
   function startTest(callsign: string) {
     if (!confirm(`Send test to ${callsign}? The device will make sounds.`)) {
